@@ -107,6 +107,15 @@ export async function runScan(rpc, identifier, opts = {}) {
       /* default */
     }
     report.supply = supply;
+    // priceUsd is already denominated in USD, including USDC-quoted pairs.
+    // Prefer it to a historical launch's quote price or an assumed SOL rate.
+    if (report.market.marketCapUsd == null && typeof report.market.priceUsd === 'number' &&
+        Number.isFinite(report.market.priceUsd) && report.market.priceUsd > 0 &&
+        typeof supply === 'number' && Number.isFinite(supply) && supply > 0 &&
+        Number.isFinite(report.market.priceUsd * supply)) {
+      report.market.marketCapUsd = report.market.priceUsd * supply;
+      report.market.mcapSource = 'DexScreener USD price × token supply';
+    }
     solPriceUsd().then((v) => (report.solUsd = v || null)).catch(() => {});
     done('resolve');
   } catch (e) {
