@@ -26,6 +26,7 @@ async function marketStage(t, pair, supply) {
   const signal = { aborted: false };
   const rpc = { totalCalls: 0, getMintInfo: async (value) => {
     assert.equal(value, mint);
+    if (supply instanceof Error) throw supply;
     return { supply, tokenProgram: PROGRAMS.TOKEN };
   } };
   const report = await runScan(rpc, mint, { signal, emit(stage, current) {
@@ -74,3 +75,11 @@ test('overflowing product cannot create a displayed USD market cap', async (t) =
   const report = await marketStage(t, { priceUsd: '1e308' }, 2);
   assert.equal(report.market.marketCapUsd, null);
 });
+
+for (const supply of [undefined, null, 0, -1, Infinity, NaN, '200000000', new Error('mint unavailable')]) {
+  test(`unconfirmed or invalid supply cannot produce a new USD cap: ${String(supply)}`, async (t) => {
+    const report = await marketStage(t, { priceUsd: '0.002', marketCap: null, fdv: null }, supply);
+    assert.equal(report.market.marketCapUsd, null);
+    assert.equal(report.market.mcapSource, undefined);
+  });
+}

@@ -99,9 +99,11 @@ export async function runScan(rpc, identifier, opts = {}) {
     }
     report.market = pair ? { ...pair } : { mint: r.mint };
     let supply = PUMP_TOTAL_SUPPLY;
+    let confirmedSupply = null;
     try {
       const m = await rpc.getMintInfo(r.mint);
       if (m?.supply) supply = m.supply;
+      if (typeof m?.supply === 'number' && Number.isFinite(m.supply) && m.supply > 0) confirmedSupply = m.supply;
       if (m?.tokenProgram) report.tokenProgram = m.tokenProgram;
     } catch {
       /* default */
@@ -111,9 +113,8 @@ export async function runScan(rpc, identifier, opts = {}) {
     // Prefer it to a historical launch's quote price or an assumed SOL rate.
     if (report.market.marketCapUsd == null && typeof report.market.priceUsd === 'number' &&
         Number.isFinite(report.market.priceUsd) && report.market.priceUsd > 0 &&
-        typeof supply === 'number' && Number.isFinite(supply) && supply > 0 &&
-        Number.isFinite(report.market.priceUsd * supply)) {
-      report.market.marketCapUsd = report.market.priceUsd * supply;
+        confirmedSupply !== null && Number.isFinite(report.market.priceUsd * confirmedSupply)) {
+      report.market.marketCapUsd = report.market.priceUsd * confirmedSupply;
       report.market.mcapSource = 'DexScreener USD price × token supply';
     }
     solPriceUsd().then((v) => (report.solUsd = v || null)).catch(() => {});
